@@ -1181,7 +1181,9 @@ document.getElementById("btn-next").addEventListener("click", () => {
 });
 
 // ─── Add Video ────────────────────────────────────────────────────────────────
-document.getElementById("add-video-btn").addEventListener("click", addVideo);
+document
+  .getElementById("add-video-btn")
+  .addEventListener("click", () => addVideo());
 videoUrlInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") addVideo();
 });
