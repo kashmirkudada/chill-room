@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chill Room 🛋️</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0d0f14;
+        --surface: #161921;
+        --surface2: #1e2230;
+        --border: #2a2f3f;
+        --accent: #7c6aff;
+        --accent2: #ff6b9d;
+        --green: #6bcb77;
+        --text: #e8eaf0;
+        --muted: #6b7280;
+        --sidebar-w: 300px;
+        --video-pane-h: min(56vh, calc(100dvh - 48px - 120px));
+        --video-pane-w: 74%;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Space Grotesk", sans-serif;
+        overflow-x: hidden;
+      }
+
+      body {
+        min-height: 100dvh;
+      }
+
+      /* ── Layout ── */
+      #app {
+        display: grid;
+        grid-template-columns: 1fr var(--sidebar-w);
+        grid-template-rows: 48px 1fr;
+        width: 100%;
+        min-height: 100dvh;
+        height: 100%;
+      }
+
+      #main-col {
+        grid-column: 1;
+        grid-row: 2;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+        border-right: 1px solid var(--border);
+      }
+
+      #topbar {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        gap: 10px;
+        z-index: 10;
+        min-width: 0;
+      }
+
+      #topbar .logo {
+        font-family: "Space Mono", monospace;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--accent);
+        letter-spacing: 1px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      #topbar .logo span {
+        color: var(--accent2);
+      }
+
+      #online-count {
+        font-size: 12px;
+        color: var(--muted);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        padding: 3px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      #online-count b {
+        color: var(--green);
+      }
+
+      /* ── Lounge canvas ── */
+      #lounge-wrap {
+        flex: 1 1 0;
+        position: relative;
+        overflow: hidden;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        min-width: 0;
+        min-height: 90px;
+      }
+      #lounge {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        cursor: grab;
+      }
+      #lounge:active {
+        cursor: grabbing;
+      }
+
+      /* ── Right panel (chat) ── */
+      #panel {
+        grid-column: 2;
+        grid-row: 2;
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        overflow: hidden;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      #chat-wrap {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .panel-title {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 10px 12px 8px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      #chat-log {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+        min-height: 0;
+      }
+
+      .msg {
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .msg .sender {
+        font-weight: 600;
+        font-size: 12px;
+        margin-bottom: 2px;
+      }
+      .msg .text {
+        color: #c9ccd4;
+        word-break: break-word;
+      }
+      .msg .time {
+        font-size: 10px;
+        color: var(--muted);
+        margin-left: 6px;
+      }
+
+      .system-msg {
+        font-size: 11px;
+        color: var(--muted);
+        font-style: italic;
+        text-align: center;
+        padding: 2px 0;
+      }
+
+      #reactions {
+        display: flex;
+        gap: 4px;
+        padding: 6px 10px;
+        border-top: 1px solid var(--border);
+        justify-content: center;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+      .reaction-btn {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 16px;
+        padding: 4px 10px;
+        cursor: pointer;
+        transition:
+          transform 0.15s,
+          background 0.15s;
+      }
+      .reaction-btn:hover {
+        transform: scale(1.2);
+        background: var(--surface);
+      }
+
+      #chat-input-row {
+        display: flex;
+        gap: 6px;
+        padding: 8px 10px;
+        border-top: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      #chat-input {
+        flex: 1;
+        min-width: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 13px;
+        padding: 7px 10px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      #chat-input:focus {
+        border-color: var(--accent);
+      }
+      #chat-send {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 600;
+        transition: opacity 0.2s;
+        flex-shrink: 0;
+      }
+      #chat-send:hover {
+        opacity: 0.85;
+      }
+      #chat-send:disabled,
+      #chat-input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* ── Resize handles ── */
+      .pane-resizer {
+        flex: 0 0 6px;
+        background: var(--surface2);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        cursor: row-resize;
+        touch-action: none;
+        position: relative;
+        z-index: 5;
+      }
+      .pane-resizer::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 36px;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--border);
+      }
+      .pane-resizer:hover::after,
+      .pane-resizer.dragging::after {
+        background: var(--accent);
+      }
+      .pane-resizer.col {
+        flex: 0 0 6px;
+        width: 6px;
+        height: auto;
+        cursor: col-resize;
+        border-top: none;
+        border-bottom: none;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+      }
+      .pane-resizer.col::after {
+        width: 3px;
+        height: 36px;
+      }
+
+      /* ── Boombox (video on top) ── */
+      #boombox {
+        flex: 0 0 var(--video-pane-h);
+        display: flex;
+        flex-direction: row;
+        background: var(--surface);
+        overflow: hidden;
+        min-width: 0;
+        min-height: 200px;
+        max-height: calc(100dvh - 48px - 80px);
+      }
+
+      #yt-player-wrap {
+        position: relative;
+        background: #000;
+        flex: 0 0 var(--video-pane-w);
+        min-width: 240px;
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      #yt-player-wrap iframe,
+      #embed-frame,
+      #html5-player {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border: none;
+        background: #000;
+      }
+      #html5-player,
+      #embed-frame {
+        position: absolute;
+        inset: 0;
+      }
+      #yt-player {
+        width: 100%;
+        height: 100%;
+      }
+      #yt-player iframe {
+        width: 100%;
+        height: 100%;
+      }
+      .media-layer {
+        position: absolute;
+        inset: 0;
+      }
+      .media-layer.hidden {
+        visibility: hidden;
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      #yt-player-shield {
+        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        background: transparent;
+        cursor: not-allowed;
+      }
+      #yt-player-wrap.view-only #yt-player-shield {
+        display: block;
+      }
+
+      #player-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        pointer-events: none;
+      }
+      #player-placeholder .icon {
+        font-size: 28px;
+      }
+
+      #boombox-controls {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0;
+        padding: 10px 14px;
+        gap: 8px;
+        overflow: hidden;
+        min-width: 160px;
+      }
+
+      #dj-badge {
+        font-size: 11px;
+        color: var(--muted);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 10px;
+        flex-shrink: 0;
+        line-height: 1.4;
+      }
+      #dj-badge b {
+        color: var(--accent2);
+      }
+      #dj-badge.is-dj b {
+        color: var(--green);
+      }
+
+      #dj-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+      #btn-become-dj {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: opacity 0.2s;
+      }
+      #btn-become-dj:hover {
+        opacity: 0.85;
+      }
+      #btn-become-dj:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      #pass-dj-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+      }
+      #btn-pass-dj {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 11px;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        transition: background 0.15s;
+      }
+      #btn-pass-dj:hover {
+        background: var(--border);
+      }
+      #pass-dj-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        max-height: 140px;
+        overflow-y: auto;
+        z-index: 20;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+      #pass-dj-menu.open {
+        display: block;
+      }
+      .pass-dj-item {
+        display: block;
+        width: 100%;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 11px;
+        padding: 7px 10px;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .pass-dj-item:hover {
+        background: var(--border);
+      }
+      .pass-dj-item .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+
+      #lounge-hint {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        color: var(--muted);
+        background: rgba(0, 0, 0, 0.45);
+        padding: 4px 10px;
+        border-radius: 12px;
+        pointer-events: none;
+        white-space: nowrap;
+        z-index: 2;
+      }
+
+      #now-playing {
+        font-size: 12px;
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+      #now-playing b {
+        color: var(--text);
+        font-size: 13px;
+        display: block;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #transport {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .ctrl-btn {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.15s;
+        flex-shrink: 0;
+      }
+      .ctrl-btn:hover {
+        background: var(--border);
+      }
+      .ctrl-btn.play {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .ctrl-btn.play:hover {
+        opacity: 0.85;
+      }
+      .ctrl-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      #add-video-row {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      #video-url-input {
+        flex: 1;
+        min-width: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 12px;
+        padding: 6px 10px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      #video-url-input:focus {
+        border-color: var(--accent2);
+      }
+      #add-video-btn {
+        background: var(--accent2);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        white-space: nowrap;
+        transition: opacity 0.2s;
+        flex-shrink: 0;
+      }
+      #add-video-btn:hover {
+        opacity: 0.85;
+      }
+
+      #playlist-wrap {
+        flex: 1;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+        min-height: 0;
+      }
+      .playlist-item {
+        font-size: 11px;
+        color: var(--muted);
+        padding: 4px 6px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.15s;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .playlist-item:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .playlist-item.active {
+        color: var(--accent);
+        background: var(--surface2);
+      }
+      .playlist-item.disabled {
+        cursor: default;
+        opacity: 0.7;
+      }
+      .playlist-item .idx {
+        color: var(--border);
+        font-family: "Space Mono", monospace;
+        min-width: 14px;
+      }
+
+      /* ── Floating reactions ── */
+      .float-reaction {
+        position: fixed;
+        font-size: 24px;
+        pointer-events: none;
+        z-index: 999;
+        animation: floatUp 1.8s ease-out forwards;
+      }
+      @keyframes floatUp {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-80px) scale(1.4);
+        }
+      }
+
+      /* ── My badge ── */
+      #my-badge {
+        font-size: 11px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        overflow: hidden;
+      }
+      #my-name-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #my-badge .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      /* ── Responsive ── */
+      @media (max-width: 900px) {
+        :root {
+          --sidebar-w: 260px;
+        }
+      }
+
+      @media (max-width: 680px) {
+        :root {
+          --sidebar-w: 100%;
+          --video-pane-h: min(42vh, calc(100dvh - 48px - 280px));
+        }
+
+        #app {
+          grid-template-columns: 1fr;
+          grid-template-rows: 48px 1fr auto;
+        }
+
+        #main-col {
+          border-right: none;
+        }
+
+        #boombox {
+          flex-direction: column;
+          max-height: none;
+        }
+
+        #yt-player-wrap {
+          flex: 0 0 auto;
+          width: 100%;
+          min-width: 0;
+          aspect-ratio: 16 / 9;
+          height: auto;
+        }
+
+        #video-splitter {
+          display: none;
+        }
+
+        #boombox-controls {
+          flex: 0 0 auto;
+          border-top: 1px solid var(--border);
+          min-height: 130px;
+        }
+
+        #panel {
+          grid-column: 1;
+          grid-row: 3;
+          border-left: none;
+          border-top: 1px solid var(--border);
+          min-height: 200px;
+          max-height: 36vh;
+        }
+
+        #topbar .logo {
+          font-size: 12px;
+        }
+
+        #online-count {
+          font-size: 11px;
+          padding: 3px 8px;
+        }
+
+        #lounge-hint {
+          font-size: 9px;
+          padding: 3px 8px;
+        }
+      }
+
+      @media (max-width: 420px) {
+        #topbar {
+          padding: 0 10px;
+          gap: 6px;
+        }
+
+        #my-badge {
+          display: none;
+        }
+
+        .ctrl-btn {
+          padding: 5px 8px;
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="topbar">
+        <div class="logo">CHILL<span>ROOM</span></div>
+        <div id="my-badge">
+          <span class="dot" id="my-color-dot"></span>
+          <span id="my-name-label">connecting...</span>
+        </div>
+        <div id="online-count"><b id="count">0</b> online</div>
+      </div>
+
+      <div id="main-col">
+        <div id="boombox">
+          <div id="yt-player-wrap">
+            <div id="player-placeholder">
+              <div class="icon">🎵</div>
+              <div>Paste a video link</div>
+              <div style="font-size:10px;margin-top:4px;opacity:0.7">
+                YouTube · Vimeo · Twitch · Dailymotion · .mp4
+              </div>
+            </div>
+            <div id="yt-layer" class="media-layer hidden">
+              <div id="yt-player"></div>
+            </div>
+            <video id="html5-player" class="media-layer hidden" playsinline controls></video>
+            <iframe
+              id="embed-frame"
+              class="media-layer hidden"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              allowfullscreen
+            ></iframe>
+            <div id="yt-player-shield" title="Only the DJ can control playback"></div>
+          </div>
+          <div
+            id="video-splitter"
+            class="pane-resizer col"
+            title="Drag to resize video width"
+            aria-label="Drag to resize video width"
+          ></div>
+          <div id="boombox-controls">
+            <div id="dj-badge">🎧 DJ: <b>—</b></div>
+            <div id="dj-actions">
+              <button id="btn-become-dj" type="button" hidden>Become DJ</button>
+              <div id="pass-dj-wrap" hidden>
+                <button id="btn-pass-dj" type="button">Pass DJ to… ▾</button>
+                <div id="pass-dj-menu"></div>
+              </div>
+            </div>
+            <div id="now-playing">
+              Now Playing <b id="np-title">Nothing yet...</b>
+            </div>
+            <div id="transport">
+              <button class="ctrl-btn" id="btn-prev">⏮</button>
+              <button class="ctrl-btn play" id="btn-play">▶ Play</button>
+              <button class="ctrl-btn" id="btn-next">⏭</button>
+            </div>
+            <div id="add-video-row">
+              <input
+                id="video-url-input"
+                type="text"
+                placeholder="Paste video URL..."
+              />
+              <button id="add-video-btn">+ Add</button>
+            </div>
+            <div id="playlist-wrap"></div>
+          </div>
+        </div>
+        <div
+          id="pane-resizer"
+          class="pane-resizer"
+          title="Drag to resize video vs lounge"
+          aria-label="Drag to resize video vs lounge"
+        ></div>
+        <div id="lounge-wrap">
+          <canvas id="lounge"></canvas>
+          <div id="lounge-hint">WASD / arrows to move · drag on mobile · drag bars to resize</div>
+        </div>
+      </div>
+
+      <div id="panel">
+        <div id="chat-wrap">
+          <div class="panel-title">💬 Chat</div>
+          <div id="chat-log"></div>
+        </div>
+        <div id="reactions">
+          <button class="reaction-btn" data-emoji="🔥">🔥</button>
+          <button class="reaction-btn" data-emoji="😂">😂</button>
+          <button class="reaction-btn" data-emoji="😮">😮</button>
+          <button class="reaction-btn" data-emoji="💜">💜</button>
+          <button class="reaction-btn" data-emoji="👏">👏</button>
+        </div>
+        <div id="chat-input-row">
+          <input
+            id="chat-input"
+            type="text"
+            placeholder="Say something..."
+            maxlength="300"
+          />
+          <button id="chat-send">Send</button>
+        </div>
+      </div>
+
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/index.js"></script>
+  </body>
+</html>
