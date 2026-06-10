@@ -68,7 +68,15 @@ function applyVideoWidth(pct) {
   rootStyle.setProperty("--video-pane-w", `${clamp(pct, 55, 88)}%`);
 }
 
+function isMobileLayout() {
+  return window.innerWidth <= 680;
+}
+
 function loadLayoutPrefs() {
+  if (isMobileLayout()) {
+    rootStyle.setProperty("--video-pane-h", "auto");
+    return;
+  }
   const savedH = Number(localStorage.getItem(LAYOUT_KEYS.h));
   const savedW = Number(localStorage.getItem(LAYOUT_KEYS.w));
   applyVideoHeight(Number.isFinite(savedH) && savedH > 0 ? savedH : defaultVideoHeight());
@@ -164,6 +172,10 @@ function initLayoutResizers() {
   });
 
   window.addEventListener("resize", () => {
+    if (isMobileLayout()) {
+      rootStyle.setProperty("--video-pane-h", "auto");
+      return;
+    }
     const savedH = Number(localStorage.getItem(LAYOUT_KEYS.h));
     if (!Number.isFinite(savedH) || savedH <= 0) {
       applyVideoHeight(defaultVideoHeight());
@@ -466,7 +478,9 @@ if (!socket) {
     chatLogEl.innerHTML = "";
     (data.chatLog || []).forEach(addChatMessage);
 
+    showFastPreviewIfNeeded();
     syncVideoWhenReady();
+    startSyncRetries();
   });
 
   socket.on("user_joined", (user) => {
@@ -505,7 +519,9 @@ if (!socket) {
 
   socket.on("video_state", (state) => {
     videoState = normalizeVideoState(state);
-    applyVideoState();
+    showFastPreviewIfNeeded();
+    syncVideoWhenReady();
+    startSyncRetries();
   });
 
   socket.on("error_msg", (msg) => {
@@ -686,6 +702,83 @@ function hidePlaceholder() {
   document.getElementById("player-placeholder").style.display = "none";
 }
 
+function setPlayerLoading(visible) {
+  document.getElementById("player-loading").classList.toggle("visible", visible);
+}
+
+function hideFastPreview() {
+  const embed = document.getElementById("yt-fast-embed");
+  embed.classList.add("hidden");
+  embed.removeAttribute("src");
+}
+
+function showFastPreviewIfNeeded() {
+  const item = playlist[videoState.currentIndex];
+  if (!item) return;
+
+  const type = mediaType(item);
+  const id = mediaId(item);
+  const seekTo = Math.max(0, Math.floor(getSeekPosition()));
+
+  if (type === "youtube") {
+    if (ytReady && activeMediaType === "youtube" && activeMediaId === id) return;
+
+    const embed = document.getElementById("yt-fast-embed");
+    const params = new URLSearchParams({
+      start: String(seekTo),
+      autoplay: videoState.playing ? "1" : "0",
+      playsinline: "1",
+      rel: "0",
+      modestbranding: "1",
+    });
+
+    embed.src = `https://www.youtube.com/embed/${id}?${params}`;
+    embed.classList.remove("hidden");
+    document.getElementById("yt-layer").classList.add("hidden");
+    hidePlaceholder();
+    setPlayerLoading(true);
+  } else if (type === "direct" && !html5Ready) {
+    showMediaLayer("direct");
+    html5El.src = id;
+    hidePlaceholder();
+    setPlayerLoading(true);
+  } else if (["vimeo", "twitch", "dailymotion"].includes(type) && !isPlayerReadyFor(type)) {
+    const frame = document.getElementById("embed-frame");
+    frame.src = buildEmbedSrc(item, seekTo);
+    showMediaLayer(type);
+    hidePlaceholder();
+    setPlayerLoading(true);
+  } else {
+    return;
+  }
+
+  document.getElementById("np-title").textContent = mediaLabel(item);
+}
+
+let syncRetryTimer = null;
+
+function startSyncRetries() {
+  if (syncRetryTimer) clearInterval(syncRetryTimer);
+  let attempts = 0;
+  syncRetryTimer = setInterval(() => {
+    attempts += 1;
+    if (attempts > 40) {
+      clearInterval(syncRetryTimer);
+      syncRetryTimer = null;
+      setPlayerLoading(false);
+      return;
+    }
+    syncVideoWhenReady();
+  }, 400);
+}
+
+function stopSyncRetries() {
+  if (syncRetryTimer) {
+    clearInterval(syncRetryTimer);
+    syncRetryTimer = null;
+  }
+}
+
 function twitchParent() {
   return window.location.hostname || "localhost";
 }
@@ -764,10 +857,9 @@ async function ensureVimeoPlayer(src) {
 }
 
 // ─── Players ──────────────────────────────────────────────────────────────────
-function initYouTubePlayer() {
-  if (ytPlayer || !window.YT || !window.YT.Player) return;
-
-  ytPlayer = new YT.Player("yt-player", {
+function getYouTubePlayerOptions() {
+  const item = playlist[videoState.currentIndex];
+  const opts = {
     height: "100%",
     width: "100%",
     playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 },
@@ -775,6 +867,7 @@ function initYouTubePlayer() {
       onReady: () => {
         ytReady = true;
         syncVideoWhenReady();
+        startSyncRetries();
       },
       onStateChange: (e) => {
         if (isSyncing || !socket || !isDj || activeMediaType !== "youtube") return;
@@ -793,7 +886,20 @@ function initYouTubePlayer() {
         }
       },
     },
-  });
+  };
+
+  if (item && mediaType(item) === "youtube") {
+    opts.videoId = mediaId(item);
+    const start = Math.max(0, Math.floor(getSeekPosition()));
+    if (start > 0) opts.playerVars.start = start;
+  }
+
+  return opts;
+}
+
+function initYouTubePlayer() {
+  if (ytPlayer || !window.YT || !window.YT.Player) return;
+  ytPlayer = new YT.Player("yt-player", getYouTubePlayerOptions());
 }
 
 window.onYouTubeIframeAPIReady = initYouTubePlayer;
@@ -891,6 +997,7 @@ async function applyVideoState() {
       isSyncing = false;
       return;
     }
+    document.getElementById("yt-layer").classList.remove("hidden");
     let currentVideoId = null;
     try {
       currentVideoId = ytPlayer.getVideoData()?.video_id ?? null;
@@ -905,6 +1012,9 @@ async function applyVideoState() {
     }
     if (videoState.playing) ytPlayer.playVideo();
     else ytPlayer.pauseVideo();
+    hideFastPreview();
+    setPlayerLoading(false);
+    stopSyncRetries();
   } else if (type === "direct") {
     if (changed || html5El.src !== id) {
       html5Ready = false;
@@ -918,6 +1028,8 @@ async function applyVideoState() {
     };
     if (html5El.readyState >= 1) applyDirect();
     else html5El.addEventListener("loadedmetadata", applyDirect, { once: true });
+    setPlayerLoading(false);
+    stopSyncRetries();
   } else if (type === "vimeo") {
     const frame = document.getElementById("embed-frame");
     const src = buildEmbedSrc(item);
@@ -932,6 +1044,8 @@ async function applyVideoState() {
       await vimeoPlayer.setCurrentTime(seekTo).catch(() => {});
       if (videoState.playing) await vimeoPlayer.play().catch(() => {});
       else await vimeoPlayer.pause().catch(() => {});
+      setPlayerLoading(false);
+      stopSyncRetries();
     }
   } else if (type === "twitch" || type === "dailymotion") {
     const frame = document.getElementById("embed-frame");
@@ -943,6 +1057,10 @@ async function applyVideoState() {
       vimeoBoundSrc = null;
       frame.src = src;
       hidePlaceholder();
+    }
+    if (embedReady) {
+      setPlayerLoading(false);
+      stopSyncRetries();
     }
   }
 
@@ -996,22 +1114,64 @@ videoUrlInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") addVideo();
 });
 
-function addVideo() {
-  const url = videoUrlInput.value.trim();
+function addVideo(urlOverride) {
+  const url = (urlOverride ?? videoUrlInput.value).trim();
   if (!url || !socket || !connected) return;
   socket.emit("add_video", url);
   videoUrlInput.value = "";
+  closePasteModal();
   if (!isDj) {
     addSystemMessage("Video queued — become DJ to control playback");
   }
 }
 
+function openPasteModal() {
+  const modal = document.getElementById("paste-modal");
+  const input = document.getElementById("paste-modal-input");
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  input.value = videoUrlInput.value;
+  setTimeout(() => input.focus(), 50);
+}
+
+function closePasteModal() {
+  const modal = document.getElementById("paste-modal");
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+  document.getElementById("paste-modal-input").value = "";
+}
+
+document.getElementById("btn-open-paste").addEventListener("click", openPasteModal);
+document.getElementById("paste-modal-cancel").addEventListener("click", closePasteModal);
+document.getElementById("paste-modal-backdrop").addEventListener("click", closePasteModal);
+document.getElementById("paste-modal-add").addEventListener("click", () => {
+  addVideo(document.getElementById("paste-modal-input").value);
+});
+document.getElementById("paste-modal-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addVideo(e.target.value);
+});
+
+document.getElementById("toggle-playlist").addEventListener("click", () => {
+  const wrap = document.getElementById("playlist-wrap");
+  const btn = document.getElementById("toggle-playlist");
+  const open = wrap.classList.toggle("expanded");
+  btn.textContent = open ? "Queue ▴" : "Queue ▾";
+});
+
 // ─── Playlist render ──────────────────────────────────────────────────────────
 function renderPlaylist() {
   const wrap = document.getElementById("playlist-wrap");
+  const toggle = document.getElementById("toggle-playlist");
   if (playlist.length === 0) {
     wrap.innerHTML = `<div style="font-size:11px;color:var(--muted);padding:4px 6px;">No videos yet. Add one above ↑</div>`;
+    toggle.textContent = "Queue ▾";
+    wrap.classList.remove("expanded");
     return;
+  }
+  if (isMobileLayout()) {
+    toggle.textContent = wrap.classList.contains("expanded")
+      ? `Queue ▴ (${playlist.length})`
+      : `Queue ▾ (${playlist.length})`;
   }
   wrap.innerHTML = playlist
     .map(

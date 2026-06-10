@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chill Room 🛋️</title>
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+    <script src="https://www.youtube.com/iframe_api" async></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
 
@@ -386,6 +389,48 @@
         font-size: 28px;
       }
 
+      #player-loading {
+        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: rgba(0, 0, 0, 0.72);
+        color: var(--text);
+        font-size: 12px;
+        pointer-events: none;
+      }
+      #player-loading.visible {
+        display: flex;
+      }
+      #player-loading .spinner {
+        width: 22px;
+        height: 22px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      #yt-fast-embed {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: #000;
+      }
+      #yt-fast-embed.hidden {
+        display: none;
+      }
+
       #boombox-controls {
         display: flex;
         flex-direction: column;
@@ -641,6 +686,100 @@
         min-width: 14px;
       }
 
+      #toggle-playlist {
+        display: none;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-family: inherit;
+        cursor: pointer;
+        text-align: left;
+        flex-shrink: 0;
+      }
+
+      /* ── Mobile paste modal ── */
+      #paste-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      #paste-modal.open {
+        display: flex;
+      }
+      #paste-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+      }
+      #paste-modal-sheet {
+        position: relative;
+        width: 100%;
+        max-width: 480px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        border-radius: 16px 16px 0 0;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 1;
+      }
+      #paste-modal-title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      #paste-modal-hint {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+      #paste-modal-input {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 16px;
+        padding: 12px 14px;
+        outline: none;
+      }
+      #paste-modal-input:focus {
+        border-color: var(--accent);
+      }
+      #paste-modal-actions {
+        display: flex;
+        gap: 8px;
+      }
+      #paste-modal-add {
+        flex: 1;
+        background: var(--accent2);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      #paste-modal-cancel {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 14px;
+        font-family: inherit;
+        cursor: pointer;
+      }
+
       /* ── Floating reactions ── */
       .float-reaction {
         position: fixed;
@@ -693,7 +832,7 @@
       @media (max-width: 680px) {
         :root {
           --sidebar-w: 100%;
-          --video-pane-h: min(42vh, calc(100dvh - 48px - 280px));
+          --video-pane-h: auto;
         }
 
         #app {
@@ -703,29 +842,106 @@
 
         #main-col {
           border-right: none;
+          grid-row: 2;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow: hidden;
         }
 
         #boombox {
+          flex: none;
           flex-direction: column;
           max-height: none;
+          min-height: 0;
         }
 
         #yt-player-wrap {
-          flex: 0 0 auto;
+          flex: none;
           width: 100%;
           min-width: 0;
+          max-height: 32vh;
           aspect-ratio: 16 / 9;
           height: auto;
         }
 
-        #video-splitter {
+        #video-splitter,
+        #pane-resizer {
           display: none;
         }
 
         #boombox-controls {
-          flex: 0 0 auto;
+          flex: none;
           border-top: 1px solid var(--border);
-          min-height: 130px;
+          padding: 8px 10px;
+          gap: 6px;
+          max-height: none;
+          overflow: visible;
+        }
+
+        #add-video-row {
+          display: none;
+        }
+
+        #btn-open-paste {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          background: var(--accent2);
+          color: #fff;
+          border: none;
+          border-radius: 10px;
+          padding: 11px 14px;
+          font-size: 14px;
+          font-weight: 600;
+          font-family: inherit;
+          cursor: pointer;
+          flex-shrink: 0;
+          order: -10;
+        }
+
+        #transport {
+          order: -9;
+          justify-content: center;
+        }
+
+        #dj-badge {
+          order: -8;
+          font-size: 10px;
+          padding: 5px 8px;
+        }
+
+        #dj-actions {
+          order: -7;
+        }
+
+        #now-playing {
+          order: -6;
+          font-size: 11px;
+        }
+
+        #toggle-playlist {
+          display: block;
+          order: 5;
+        }
+
+        #playlist-wrap {
+          order: 6;
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.2s ease;
+        }
+
+        #playlist-wrap.expanded {
+          max-height: 100px;
+          overflow-y: auto;
+        }
+
+        #lounge-wrap {
+          flex: 1 1 0;
+          min-height: 80px;
+          max-height: 18vh;
         }
 
         #panel {
@@ -733,8 +949,8 @@
           grid-row: 3;
           border-left: none;
           border-top: 1px solid var(--border);
-          min-height: 200px;
-          max-height: 36vh;
+          min-height: 180px;
+          max-height: none;
         }
 
         #topbar .logo {
@@ -747,9 +963,12 @@
         }
 
         #lounge-hint {
-          font-size: 9px;
-          padding: 3px 8px;
+          display: none;
         }
+      }
+
+      #btn-open-paste {
+        display: none;
       }
 
       @media (max-width: 420px) {
@@ -790,6 +1009,16 @@
                 YouTube · Vimeo · Twitch · Dailymotion · .mp4
               </div>
             </div>
+            <iframe
+              id="yt-fast-embed"
+              class="hidden"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+            <div id="player-loading">
+              <div class="spinner"></div>
+              <span>Syncing video…</span>
+            </div>
             <div id="yt-layer" class="media-layer hidden">
               <div id="yt-player"></div>
             </div>
@@ -825,14 +1054,17 @@
               <button class="ctrl-btn play" id="btn-play">▶ Play</button>
               <button class="ctrl-btn" id="btn-next">⏭</button>
             </div>
+            <button id="btn-open-paste" type="button">+ Paste video link</button>
             <div id="add-video-row">
               <input
                 id="video-url-input"
-                type="text"
+                type="url"
+                inputmode="url"
                 placeholder="Paste video URL..."
               />
               <button id="add-video-btn">+ Add</button>
             </div>
+            <button id="toggle-playlist" type="button">Queue ▾</button>
             <div id="playlist-wrap"></div>
           </div>
         </div>
@@ -871,6 +1103,26 @@
         </div>
       </div>
 
+    </div>
+
+    <div id="paste-modal" aria-hidden="true">
+      <div id="paste-modal-backdrop"></div>
+      <div id="paste-modal-sheet">
+        <div id="paste-modal-title">Add a video</div>
+        <div id="paste-modal-hint">YouTube · Vimeo · Twitch · Dailymotion · direct .mp4 link</div>
+        <input
+          id="paste-modal-input"
+          type="url"
+          inputmode="url"
+          autocomplete="off"
+          autocapitalize="off"
+          placeholder="Paste link here…"
+        />
+        <div id="paste-modal-actions">
+          <button id="paste-modal-add" type="button">Add to queue</button>
+          <button id="paste-modal-cancel" type="button">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
