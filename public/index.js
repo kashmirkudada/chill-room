@@ -7,7 +7,12 @@ const videoUrlInput = document.getElementById("video-url-input");
 let me = null;
 let users = {};
 let playlist = [];
-let videoState = { playing: false, currentIndex: -1, timestamp: 0, lastUpdated: Date.now() };
+let videoState = {
+  playing: false,
+  currentIndex: -1,
+  timestamp: 0,
+  lastUpdated: Date.now(),
+};
 let ytPlayer = null;
 let ytReady = false;
 let vimeoPlayer = null;
@@ -27,7 +32,10 @@ const keys = {};
 const SPEED = 3;
 
 // ─── Socket ───────────────────────────────────────────────────────────────────
-const socket = typeof io !== "undefined" ? io({ transports: ["websocket", "polling"] }) : null;
+const socket =
+  typeof io !== "undefined"
+    ? io({ transports: ["websocket", "polling"] })
+    : null;
 
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
 const canvas = document.getElementById("lounge");
@@ -43,7 +51,9 @@ function handleResize() {
 }
 resizeCanvas();
 window.addEventListener("resize", handleResize);
-window.addEventListener("orientationchange", () => setTimeout(handleResize, 100));
+window.addEventListener("orientationchange", () =>
+  setTimeout(handleResize, 100),
+);
 
 // ─── Layout resize (video height + width) ─────────────────────────────────────
 const LAYOUT_KEYS = { h: "chillroom-video-h", w: "chillroom-video-w" };
@@ -79,7 +89,9 @@ function loadLayoutPrefs() {
   }
   const savedH = Number(localStorage.getItem(LAYOUT_KEYS.h));
   const savedW = Number(localStorage.getItem(LAYOUT_KEYS.w));
-  applyVideoHeight(Number.isFinite(savedH) && savedH > 0 ? savedH : defaultVideoHeight());
+  applyVideoHeight(
+    Number.isFinite(savedH) && savedH > 0 ? savedH : defaultVideoHeight(),
+  );
   applyVideoWidth(Number.isFinite(savedW) && savedW > 0 ? savedW : 74);
 }
 
@@ -153,7 +165,12 @@ function initLayoutResizers() {
       applyVideoHeight(clamp(next, 200, max));
     },
     onEnd: () => {
-      const h = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--video-pane-h"), 10);
+      const h = parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--video-pane-h",
+        ),
+        10,
+      );
       if (Number.isFinite(h)) localStorage.setItem(LAYOUT_KEYS.h, String(h));
     },
   });
@@ -166,8 +183,13 @@ function initLayoutResizers() {
       applyVideoWidth(pct);
     },
     onEnd: () => {
-      const w = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--video-pane-w"));
-      if (Number.isFinite(w)) localStorage.setItem(LAYOUT_KEYS.w, String(Math.round(w)));
+      const w = parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--video-pane-w",
+        ),
+      );
+      if (Number.isFinite(w))
+        localStorage.setItem(LAYOUT_KEYS.w, String(Math.round(w)));
     },
   });
 
@@ -479,8 +501,8 @@ if (!socket) {
     (data.chatLog || []).forEach(addChatMessage);
 
     showFastPreviewIfNeeded();
-    syncVideoWhenReady();
     startSyncRetries();
+    syncVideoWhenReady();
   });
 
   socket.on("user_joined", (user) => {
@@ -533,7 +555,9 @@ if (!socket) {
     isDj = !!(me && dj && dj.id === me.id);
     updateDjUI();
     if (isDj) {
-      addSystemMessage("🎧 You're the DJ now — you control play, pause, and skip");
+      addSystemMessage(
+        "🎧 You're the DJ now — you control play, pause, and skip",
+      );
     } else if (dj) {
       addSystemMessage(`🎧 ${dj.name} is now the DJ`);
     }
@@ -681,8 +705,8 @@ function mediaType(item) {
 
 function mediaId(item) {
   if (!item) return null;
-  if (item.type === "youtube" || item.videoId) return item.videoId || item.id;
-  return item.id;
+  // Server sends { type: "youtube", id: "VIDEO_ID" } — always prefer item.id, fall back to item.videoId
+  return item.id || item.videoId || null;
 }
 
 function mediaLabel(item) {
@@ -693,9 +717,16 @@ function mediaLabel(item) {
 }
 
 function showMediaLayer(type) {
-  document.getElementById("yt-layer").classList.toggle("hidden", type !== "youtube");
+  document
+    .getElementById("yt-layer")
+    .classList.toggle("hidden", type !== "youtube");
   html5El.classList.toggle("hidden", type !== "direct");
-  document.getElementById("embed-frame").classList.toggle("hidden", !["vimeo", "twitch", "dailymotion"].includes(type));
+  document
+    .getElementById("embed-frame")
+    .classList.toggle(
+      "hidden",
+      !["vimeo", "twitch", "dailymotion"].includes(type),
+    );
 }
 
 function hidePlaceholder() {
@@ -703,7 +734,9 @@ function hidePlaceholder() {
 }
 
 function setPlayerLoading(visible) {
-  document.getElementById("player-loading").classList.toggle("visible", visible);
+  document
+    .getElementById("player-loading")
+    .classList.toggle("visible", visible);
 }
 
 function hideFastPreview() {
@@ -721,7 +754,8 @@ function showFastPreviewIfNeeded() {
   const seekTo = Math.max(0, Math.floor(getSeekPosition()));
 
   if (type === "youtube") {
-    if (ytReady && activeMediaType === "youtube" && activeMediaId === id) return;
+    if (ytReady && activeMediaType === "youtube" && activeMediaId === id)
+      return;
 
     const embed = document.getElementById("yt-fast-embed");
     const params = new URLSearchParams({
@@ -742,7 +776,10 @@ function showFastPreviewIfNeeded() {
     html5El.src = id;
     hidePlaceholder();
     setPlayerLoading(true);
-  } else if (["vimeo", "twitch", "dailymotion"].includes(type) && !isPlayerReadyFor(type)) {
+  } else if (
+    ["vimeo", "twitch", "dailymotion"].includes(type) &&
+    !isPlayerReadyFor(type)
+  ) {
     const frame = document.getElementById("embed-frame");
     frame.src = buildEmbedSrc(item, seekTo);
     showMediaLayer(type);
@@ -762,14 +799,14 @@ function startSyncRetries() {
   let attempts = 0;
   syncRetryTimer = setInterval(() => {
     attempts += 1;
-    if (attempts > 40) {
+    if (attempts > 20) {
       clearInterval(syncRetryTimer);
       syncRetryTimer = null;
       setPlayerLoading(false);
       return;
     }
     syncVideoWhenReady();
-  }, 400);
+  }, 150);
 }
 
 function stopSyncRetries() {
@@ -833,11 +870,19 @@ function bindVimeoPlayer(frame) {
   });
   vimeoPlayer.on("play", () => {
     if (isSyncing || !socket || !isDj || activeMediaType !== "vimeo") return;
-    vimeoPlayer.getCurrentTime().then((t) => socket.emit("video_control", { action: "play", timestamp: t }));
+    vimeoPlayer
+      .getCurrentTime()
+      .then((t) =>
+        socket.emit("video_control", { action: "play", timestamp: t }),
+      );
   });
   vimeoPlayer.on("pause", () => {
     if (isSyncing || !socket || !isDj || activeMediaType !== "vimeo") return;
-    vimeoPlayer.getCurrentTime().then((t) => socket.emit("video_control", { action: "pause", timestamp: t }));
+    vimeoPlayer
+      .getCurrentTime()
+      .then((t) =>
+        socket.emit("video_control", { action: "pause", timestamp: t }),
+      );
   });
   vimeoPlayer.on("ended", () => {
     if (isSyncing || !socket || !isDj || activeMediaType !== "vimeo") return;
@@ -862,7 +907,13 @@ function getYouTubePlayerOptions() {
   const opts = {
     height: "100%",
     width: "100%",
-    playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 },
+    playerVars: {
+      autoplay: 0,
+      controls: 1,
+      modestbranding: 1,
+      rel: 0,
+      playsinline: 1,
+    },
     events: {
       onReady: () => {
         ytReady = true;
@@ -870,7 +921,8 @@ function getYouTubePlayerOptions() {
         startSyncRetries();
       },
       onStateChange: (e) => {
-        if (isSyncing || !socket || !isDj || activeMediaType !== "youtube") return;
+        if (isSyncing || !socket || !isDj || activeMediaType !== "youtube")
+          return;
         if (e.data === YT.PlayerState.PLAYING) {
           socket.emit("video_control", {
             action: "play",
@@ -889,9 +941,12 @@ function getYouTubePlayerOptions() {
   };
 
   if (item && mediaType(item) === "youtube") {
-    opts.videoId = mediaId(item);
-    const start = Math.max(0, Math.floor(getSeekPosition()));
-    if (start > 0) opts.playerVars.start = start;
+    const vid = mediaId(item);
+    if (vid) {
+      opts.videoId = vid;
+      const start = Math.max(0, Math.floor(getSeekPosition()));
+      if (start > 0) opts.playerVars.start = start;
+    }
   }
 
   return opts;
@@ -923,11 +978,17 @@ function initHtml5Player() {
   });
   html5El.addEventListener("play", () => {
     if (isSyncing || !socket || !isDj || activeMediaType !== "direct") return;
-    socket.emit("video_control", { action: "play", timestamp: html5El.currentTime });
+    socket.emit("video_control", {
+      action: "play",
+      timestamp: html5El.currentTime,
+    });
   });
   html5El.addEventListener("pause", () => {
     if (isSyncing || !socket || !isDj || activeMediaType !== "direct") return;
-    socket.emit("video_control", { action: "pause", timestamp: html5El.currentTime });
+    socket.emit("video_control", {
+      action: "pause",
+      timestamp: html5El.currentTime,
+    });
   });
   html5El.addEventListener("ended", () => {
     if (isSyncing || !socket || !isDj || activeMediaType !== "direct") return;
@@ -944,12 +1005,19 @@ function initEmbedPlayer() {
 }
 
 function normalizeVideoState(state) {
-  if (!state) return { playing: false, currentIndex: -1, timestamp: 0, lastUpdated: Date.now() };
+  if (!state)
+    return {
+      playing: false,
+      currentIndex: -1,
+      timestamp: 0,
+      lastUpdated: Date.now(),
+    };
   const lastUpdated = state.lastUpdated ?? Date.now();
   if (!state.playing) {
     return { ...state, lastUpdated };
   }
-  const elapsed = (Date.now() - lastUpdated) / 1000;
+  // Add ~300ms RTT buffer so new joiners don't seek slightly behind
+  const elapsed = (Date.now() - lastUpdated) / 1000 + 0.3;
   return {
     ...state,
     timestamp: (state.timestamp ?? 0) + elapsed,
@@ -980,7 +1048,8 @@ function syncVideoWhenReady() {
 }
 
 async function applyVideoState() {
-  if (videoState.currentIndex < 0 || videoState.currentIndex >= playlist.length) return;
+  if (videoState.currentIndex < 0 || videoState.currentIndex >= playlist.length)
+    return;
 
   const item = playlist[videoState.currentIndex];
   const type = mediaType(item);
@@ -1027,7 +1096,8 @@ async function applyVideoState() {
       else html5El.pause();
     };
     if (html5El.readyState >= 1) applyDirect();
-    else html5El.addEventListener("loadedmetadata", applyDirect, { once: true });
+    else
+      html5El.addEventListener("loadedmetadata", applyDirect, { once: true });
     setPlayerLoading(false);
     stopSyncRetries();
   } else if (type === "vimeo") {
@@ -1066,7 +1136,9 @@ async function applyVideoState() {
 
   activeMediaType = type;
   activeMediaId = id;
-  document.getElementById("btn-play").textContent = videoState.playing ? "⏸ Pause" : "▶ Play";
+  document.getElementById("btn-play").textContent = videoState.playing
+    ? "⏸ Pause"
+    : "▶ Play";
   renderPlaylist();
   setTimeout(() => {
     isSyncing = false;
@@ -1141,15 +1213,23 @@ function closePasteModal() {
   document.getElementById("paste-modal-input").value = "";
 }
 
-document.getElementById("btn-open-paste").addEventListener("click", openPasteModal);
-document.getElementById("paste-modal-cancel").addEventListener("click", closePasteModal);
-document.getElementById("paste-modal-backdrop").addEventListener("click", closePasteModal);
+document
+  .getElementById("btn-open-paste")
+  .addEventListener("click", openPasteModal);
+document
+  .getElementById("paste-modal-cancel")
+  .addEventListener("click", closePasteModal);
+document
+  .getElementById("paste-modal-backdrop")
+  .addEventListener("click", closePasteModal);
 document.getElementById("paste-modal-add").addEventListener("click", () => {
   addVideo(document.getElementById("paste-modal-input").value);
 });
-document.getElementById("paste-modal-input").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") addVideo(e.target.value);
-});
+document
+  .getElementById("paste-modal-input")
+  .addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addVideo(e.target.value);
+  });
 
 document.getElementById("toggle-playlist").addEventListener("click", () => {
   const wrap = document.getElementById("playlist-wrap");
