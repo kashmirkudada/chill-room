@@ -725,10 +725,14 @@
         border-top: 1px solid var(--border);
         border-radius: 16px 16px 0 0;
         padding: 16px;
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
         display: flex;
         flex-direction: column;
         gap: 10px;
         z-index: 1;
+        /* Keyboard-aware: JS will set --kb-offset to push sheet up */
+        transform: translateY(calc(-1 * var(--kb-offset, 0px)));
+        transition: transform 0.2s ease;
       }
       #paste-modal-title {
         font-size: 15px;
@@ -779,6 +783,29 @@
         font-family: inherit;
         cursor: pointer;
       }
+      #paste-modal-clipboard {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: center;
+        width: 100%;
+      }
+      #paste-modal-clipboard:active {
+        opacity: 0.7;
+      }
+      #paste-modal-clipboard-hint {
+        font-size: 11px;
+        color: var(--muted);
+        text-align: center;
+      }
 
       /* ── Floating reactions ── */
       .float-reaction {
@@ -823,6 +850,10 @@
       }
 
       /* ── Responsive ── */
+      #btn-open-paste {
+        display: none;
+      }
+
       @media (max-width: 900px) {
         :root {
           --sidebar-w: 260px;
@@ -967,10 +998,6 @@
         }
       }
 
-      #btn-open-paste {
-        display: none;
-      }
-
       @media (max-width: 420px) {
         #topbar {
           padding: 0 10px;
@@ -1005,14 +1032,21 @@
             <div id="player-placeholder">
               <div class="icon">🎵</div>
               <div>Paste a video link</div>
-              <div style="font-size:10px;margin-top:4px;opacity:0.7">
+              <div style="font-size: 10px; margin-top: 4px; opacity: 0.7">
                 YouTube · Vimeo · Twitch · Dailymotion · .mp4
               </div>
             </div>
             <iframe
               id="yt-fast-embed"
               class="hidden"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="
+                accelerometer;
+                autoplay;
+                clipboard-write;
+                encrypted-media;
+                gyroscope;
+                picture-in-picture;
+              "
               allowfullscreen
             ></iframe>
             <div id="player-loading">
@@ -1022,14 +1056,22 @@
             <div id="yt-layer" class="media-layer hidden">
               <div id="yt-player"></div>
             </div>
-            <video id="html5-player" class="media-layer hidden" playsinline controls></video>
+            <video
+              id="html5-player"
+              class="media-layer hidden"
+              playsinline
+              controls
+            ></video>
             <iframe
               id="embed-frame"
               class="media-layer hidden"
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
               allowfullscreen
             ></iframe>
-            <div id="yt-player-shield" title="Only the DJ can control playback"></div>
+            <div
+              id="yt-player-shield"
+              title="Only the DJ can control playback"
+            ></div>
           </div>
           <div
             id="video-splitter"
@@ -1054,7 +1096,9 @@
               <button class="ctrl-btn play" id="btn-play">▶ Play</button>
               <button class="ctrl-btn" id="btn-next">⏭</button>
             </div>
-            <button id="btn-open-paste" type="button">+ Paste video link</button>
+            <button id="btn-open-paste" type="button">
+              + Paste video link
+            </button>
             <div id="add-video-row">
               <input
                 id="video-url-input"
@@ -1076,7 +1120,9 @@
         ></div>
         <div id="lounge-wrap">
           <canvas id="lounge"></canvas>
-          <div id="lounge-hint">WASD / arrows to move · drag on mobile · drag bars to resize</div>
+          <div id="lounge-hint">
+            WASD / arrows to move · drag on mobile · drag bars to resize
+          </div>
         </div>
       </div>
 
@@ -1102,14 +1148,21 @@
           <button id="chat-send">Send</button>
         </div>
       </div>
-
     </div>
 
     <div id="paste-modal" aria-hidden="true">
       <div id="paste-modal-backdrop"></div>
       <div id="paste-modal-sheet">
         <div id="paste-modal-title">Add a video</div>
-        <div id="paste-modal-hint">YouTube · Vimeo · Twitch · Dailymotion · direct .mp4 link</div>
+        <div id="paste-modal-hint">
+          YouTube · Vimeo · Twitch · Dailymotion · direct .mp4 link
+        </div>
+        <button id="paste-modal-clipboard" type="button">
+          📋 Paste from clipboard
+        </button>
+        <div id="paste-modal-clipboard-hint">
+          Or type / paste the link below
+        </div>
         <input
           id="paste-modal-input"
           type="url"

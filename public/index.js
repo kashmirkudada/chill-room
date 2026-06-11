@@ -1213,6 +1213,9 @@ function closePasteModal() {
   modal.classList.remove("open");
   modal.setAttribute("aria-hidden", "true");
   document.getElementById("paste-modal-input").value = "";
+  document
+    .getElementById("paste-modal-sheet")
+    .style.setProperty("--kb-offset", "0px");
 }
 
 document
@@ -1232,6 +1235,62 @@ document
   .addEventListener("keydown", (e) => {
     if (e.key === "Enter") addVideo(e.target.value);
   });
+
+// ─── Clipboard paste button ───────────────────────────────────────────────────
+document
+  .getElementById("paste-modal-clipboard")
+  .addEventListener("click", async () => {
+    const btn = document.getElementById("paste-modal-clipboard");
+    const input = document.getElementById("paste-modal-input");
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        input.value = text.trim();
+        btn.textContent = "✅ Pasted!";
+        setTimeout(() => {
+          btn.innerHTML = "📋 Paste from clipboard";
+        }, 1500);
+        // If it looks like a URL, auto-submit
+        if (/^https?:\/\//.test(text.trim())) {
+          input.focus();
+        }
+      } else {
+        btn.textContent = "Nothing in clipboard";
+        setTimeout(() => {
+          btn.innerHTML = "📋 Paste from clipboard";
+        }, 1500);
+      }
+    } catch {
+      // Clipboard API blocked — show hint to long-press
+      const hint = document.getElementById("paste-modal-clipboard-hint");
+      hint.textContent = "⚠️ Tap the input below and long-press → Paste";
+      hint.style.color = "var(--accent2)";
+      input.focus();
+      setTimeout(() => {
+        hint.textContent = "Or type / paste the link below";
+        hint.style.color = "";
+      }, 3000);
+    }
+  });
+
+// ─── Keyboard-aware sheet: push sheet up when virtual keyboard opens ──────────
+(function setupKeyboardAwareModal() {
+  if (!window.visualViewport) return;
+  function onViewportResize() {
+    const modal = document.getElementById("paste-modal");
+    if (!modal.classList.contains("open")) return;
+    const keyboardHeight =
+      window.innerHeight -
+      window.visualViewport.height -
+      window.visualViewport.offsetTop;
+    const offset = Math.max(0, keyboardHeight);
+    document
+      .getElementById("paste-modal-sheet")
+      .style.setProperty("--kb-offset", offset + "px");
+  }
+  window.visualViewport.addEventListener("resize", onViewportResize);
+  window.visualViewport.addEventListener("scroll", onViewportResize);
+})();
 
 document.getElementById("toggle-playlist").addEventListener("click", () => {
   const wrap = document.getElementById("playlist-wrap");
