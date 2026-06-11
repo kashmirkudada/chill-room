@@ -911,21 +911,22 @@
           --video-pane-h: auto;
         }
 
+        /* Full page scrolls on mobile */
         #app {
           grid-template-columns: 1fr;
-          grid-template-rows: 48px 1fr auto;
+          grid-template-rows: 48px auto auto;
           height: auto;
           min-height: 100dvh;
           overflow-y: auto;
           overflow-x: hidden;
         }
 
+        /* ── Main column: video + DJ controls + lounge stacked ── */
         #main-col {
           border-right: none;
           grid-row: 2;
           display: flex;
           flex-direction: column;
-          min-height: 0;
           height: auto;
           overflow: visible;
         }
@@ -941,9 +942,9 @@
           flex: none;
           width: 100%;
           min-width: 0;
-          max-height: 32vh;
           aspect-ratio: 16 / 9;
           height: auto;
+          max-height: 32vh;
         }
 
         #video-splitter,
@@ -1019,23 +1020,26 @@
           overflow-y: auto;
         }
 
+        /* Lounge: fixed visible strip */
         #lounge-wrap {
           flex: none;
-          height: 18vh;
-          min-height: 80px;
-          max-height: 18vh;
+          height: 160px;
+          min-height: 160px;
+          max-height: 160px;
+          border-top: 1px solid var(--border);
         }
 
+        /* ── Chat panel: grid-row 3, full proper chat UI ── */
         #panel {
           grid-column: 1;
           grid-row: 3;
           border-left: none;
-          border-top: 1px solid var(--border);
-          height: 40vh;
-          min-height: 200px;
-          max-height: 40vh;
+          border-top: 2px solid var(--border);
           display: flex;
           flex-direction: column;
+          height: 420px;
+          min-height: 420px;
+          max-height: 420px;
           overflow: hidden;
         }
 
@@ -1051,6 +1055,7 @@
           flex: 1;
           min-height: 0;
           overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
         }
 
         #topbar .logo {
