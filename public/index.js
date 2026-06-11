@@ -652,6 +652,49 @@ function sendChat() {
   chatInput.value = "";
 }
 
+// ─── Chat unread badge ────────────────────────────────────────────────────────
+let unreadCount = 0;
+
+function isChatVisible() {
+  const panel = document.getElementById("panel");
+  const rect = panel.getBoundingClientRect();
+  // Panel is visible if its top is within the viewport
+  return rect.top < window.innerHeight - 50;
+}
+
+function incrementUnread() {
+  if (!isMobileLayout()) return;
+  if (isChatVisible() && isNearBottom()) return;
+  unreadCount++;
+  const badge = document.getElementById("chat-badge");
+  const count = document.getElementById("chat-badge-count");
+  count.textContent = unreadCount;
+  badge.classList.add("visible");
+}
+
+function isNearBottom() {
+  const panel = document.getElementById("panel");
+  return panel.getBoundingClientRect().bottom <= window.innerHeight + 10;
+}
+
+document.getElementById("chat-badge").addEventListener("click", () => {
+  document.getElementById("panel").scrollIntoView({ behavior: "smooth" });
+  unreadCount = 0;
+  document.getElementById("chat-badge").classList.remove("visible");
+});
+
+// Hide badge when user manually scrolls to chat
+window.addEventListener(
+  "scroll",
+  () => {
+    if (unreadCount > 0 && isChatVisible()) {
+      unreadCount = 0;
+      document.getElementById("chat-badge").classList.remove("visible");
+    }
+  },
+  { passive: true },
+);
+
 function addChatMessage({ name, color, message, time }) {
   const el = document.createElement("div");
   el.className = "msg";
@@ -661,6 +704,7 @@ function addChatMessage({ name, color, message, time }) {
   `;
   chatLogEl.appendChild(el);
   chatLogEl.scrollTop = chatLogEl.scrollHeight;
+  incrementUnread();
 }
 
 function addSystemMessage(text) {
